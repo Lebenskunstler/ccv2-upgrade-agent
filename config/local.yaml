@@ -13,7 +13,7 @@ target_version: 2211-jdk21.14    # kept for backward compat
 # ----------------------------------------------------------------
 # Gate reports — written to <reports_root>/upgrade-reports/<slug>/
 # ----------------------------------------------------------------
-reports_root: /home/ayoublimouni/Documents/hybris-archives/patch-jdk21
+reports_root: path-topatch-jdk21
 
 # ----------------------------------------------------------------
 # Local server paths
