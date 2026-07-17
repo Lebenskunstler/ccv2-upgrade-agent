@@ -1,0 +1,101 @@
+healing_map:
+
+  - id: STALE_SYSTEM_UPDATE_LOCK
+    pattern: "System update cannot be performed.*lock.*cluster id|Cannot perform (the )?system update|another node is (already )?running"
+    fix:
+      type: escalate
+      reason: |
+        Stale System Update lock on local server.
+        Stop and restart the local SAP Commerce server, wait for full startup, then re-run:
+          cd $HYBRIS_HOME/bin/platform
+          ./hybrisserver.sh stop
+          ./hybrisserver.sh start
+          python main.py --env local --start-phase 3
+    max_retries: 0
+    note: "Stale lock from previous aborted System Update. Restart local server to clear."
+
+  - id: SAP_OAUTH2_TYPE_MISSING
+    pattern: "type code 'SAPOAuth2Authorization' invalid|SAPOAuth2Authorization.*not found|unknown type.*SAPOAuth2"
+    fix:
+      type: run_system_update
+      retry_step: true
+    max_retries: 1
+    note: "authorizationserver extension types not registered yet. Re-run System Update."
+
+  - id: JSTL_TAGLIB_VALIDATOR
+    pattern: "ClassNotFoundException.*javax.servlet.jsp.tagext.TagLibraryValidator|TagLibraryValidator.*ClassNotFoundException"
+    fix:
+      type: needs_redeploy
+      action: "Remove old javax-based JSTL JARs from WEB-INF/lib across all extensions"
+      commit_message: "Remove old javax-based JSTL JARs (Jakarta EE 9+ compatibility)"
+    needs_redeploy: true
+    note: "Old jstl-impl-1.2.jar / jstl-1.2.jar contain TLDs with javax.servlet.jsp.tagext refs incompatible with Tomcat 10.1.x"
+
+  - id: SPRING4SHELL_FLUENT_SETTER
+    pattern: "BeanCreationException.*fluent setter|BeanWrapperImpl.*fluent|Error creating bean.*BeanWrapperImpl"
+    fix:
+      type: escalate
+      reason: "Check Cloud Portal for spring4shell-patch properties. If present — manual Portal removal required. Then restart HAC/backoffice pod."
+    note: "Fluent setter crash. If spring4shell-patch properties still in Cloud Portal, they break Spring 6."
+
+  - id: PBKDF2_ENCODER_MISSING
+    pattern: "pbkdf2PasswordEncoder.*not found|NoSuchBeanDefinitionException.*pbkdf2|pbkdf2.*encoder.*unavailable"
+    fix:
+      type: escalate
+      reason: "Must re-encode employees from pbkdf2 → bcrypt/argon2 on jdk17 BEFORE Migrate Data deploy. Run re-encoding Groovy on current jdk17 environment first."
+    groovy_hint: |
+      import de.hybris.platform.servicelayer.search.FlexibleSearchQuery
+      def q = new FlexibleSearchQuery("SELECT count({pk}) FROM {Employee} WHERE {encodedPassword} LIKE 'pbkdf2%'")
+      def r = flexibleSearchService.search(q)
+      return r.result[0]
+    note: "BLOCKING — cannot proceed to Migrate Data deploy until all employee passwords are re-encoded."
+
+  - id: SMARTEDIT_OAUTH_404
+    pattern: "404.*authorizationserver/oauth/authorize|authorizationserver.*not found.*404|Cannot GET.*authorizationserver"
+    fix:
+      type: needs_redeploy
+      action: "Fix manifest.json: replace {\"name\": \"oauth2\", \"contextPath\": \"/authorizationserver\"} with {\"name\": \"authorizationserver\", \"contextPath\": \"/authorizationserver\"} in accstorefront and api aspects"
+      commit_message: "Fix manifest.json — replace removed oauth2 webapp with authorizationserver"
+    needs_redeploy: true
+    note: "oauth2 extension removed in jdk21. Manifest must use authorizationserver extension name. NOT documented in SAP release notes."
+
+  - id: SMARTEDIT_OAUTH_CLIENT_MISCONFIGURED
+    pattern: "public client can't have client credentials|redirect uri.*authorization_code|client should have at least one authority"
+    fix:
+      type: run_impex
+      impex_template: |
+        UPDATE OAuthClientDetails;clientId[unique=true];authorities;authorizedGrantTypes;registeredRedirectUri;requireProofKey
+        ;smartedit;ROLE_ADMINGROUP,ROLE_BASECMSMANAGERGROUP,ROLE_PREVIEWMANAGERGROUP;authorization_code,saml_token;{accstorefront_url}/smartedit;true
+    note: "SmartEdit OAuthClientDetails must be updated for PKCE flow. Public client cannot have client_credentials. authorization_code requires registeredRedirectUri."
+
+  - id: SOLR_EMPTY_PRODUCTS
+    pattern: "no products on storefront|product count.*= 0|Solr.*empty|index.*empty"
+    fix:
+      type: trigger_solr_reindex
+      wait_for_completion: true
+    timeout_seconds: 3600
+    note: "No-Migration deploy does not preserve Solr indexes. Full reindex required post-deploy."
+
+  - id: ORG_UNIT_HIERARCHY_SLOW
+    pattern: "generateUnitPaths|OrgUnitAfterInitializationEndEventListener|unit.*hierarchy.*rebuild|B2BUnitModel.*path"
+    fix:
+      type: wait
+      wait_seconds: 7200
+    note: "Not an error. B2B org unit hierarchy rebuild after System Update. Large orgs can take up to 2h — wait before investigating."
+
+  - id: BACKOFFICE_BEAN_CREATION
+    pattern: "BeanCreationException.*backoffice|backoffice.*context.*failed|Error creating bean.*backoffice"
+    fix:
+      type: inspect_logs
+      action: "Check backoffice pod logs for the root cause bean. Common causes: Spring4Shell patch still present, or missing type in type system."
+    note: "Generic BeanCreationException in backoffice. Must identify root cause bean before applying fix."
+
+  - id: OAUTH_CLEANUP_CRON_FAILING
+    pattern: "cleanOAuth2AuthorizationCronJob.*error|CleanOAuth2.*failed|oauth2.*cleanup.*exception"
+    fix:
+      type: run_groovy
+      script: |
+        def cronJobService = spring.getBean("cronJobService")
+        def cj = cronJobService.getCronJob("cleanOAuth2AuthorizationCronJob")
+        println "Status: ${cj?.status} | Result: ${cj?.result}"
+    note: "Check if cleanOAuth2AuthorizationCronJob exists and has errors. May indicate SAPOAuth2Authorization type not fully registered."

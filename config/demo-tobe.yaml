@@ -1,0 +1,29 @@
+# Demo: TOBE platform — SAP Commerce 2211-jdk21.7 (B2C cx recipe)
+# This is the "after" state. The upgrade agent builds, starts, and validates this.
+# Usage: python main.py --env demo-tobe --release-notes /path/to/release-notes.txt
+
+environment: demo-tobe
+platform_version: 2211-jdk21.7
+deploy_mode: local_ant_build
+
+local_server:
+  hybris_dir: ${DEMO_TOBE_DIR}/hybris
+  hac_url: https://localhost:9012
+
+log:
+  dir: ${DEMO_TOBE_DIR}/hybris/data/log
+
+hac:
+  base_url: https://localhost:9012
+  username: admin
+  password_env: DEMO_ADMIN_PASSWORD
+
+thresholds:
+  system_update_timeout_min: 60
+  solr_reindex_timeout_min: 30
+  server_startup_timeout_min: 45
+  build_timeout_min: 60
+
+known_active_catalogs: []
+
+verify_ssl: false
