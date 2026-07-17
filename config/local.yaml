@@ -1,0 +1,59 @@
+# Local SAP Commerce development upgrade config
+# Run: python main.py --env local
+#
+# Fill in hybris_dir (or export HYBRIS_HOME before running).
+# All operations run against your local server — no cloud API calls.
+
+environment: local
+platform_version: 2211-jdk21.14   # version you are upgrading TO
+from_version: 2211-jdk21.9        # version you are upgrading FROM (for reports)
+deploy_mode: local_ant_build      # signals this is a local ant build (not CCv2 deploy)
+target_version: 2211-jdk21.14    # kept for backward compat
+
+# ----------------------------------------------------------------
+# Gate reports — written to <reports_root>/upgrade-reports/<slug>/
+# ----------------------------------------------------------------
+reports_root: path-topatch-jdk21
+
+# ----------------------------------------------------------------
+# Local server paths
+# ----------------------------------------------------------------
+local_server:
+  hybris_dir: ${HYBRIS_HOME}      # e.g. /home/user/hybris or set HYBRIS_HOME
+  hac_url: https://localhost:9002
+
+# ----------------------------------------------------------------
+# Log directory (where SAP Commerce writes server logs)
+# ----------------------------------------------------------------
+log:
+  dir: ${HYBRIS_HOME}/data/log    # adjust if logs land elsewhere on your setup
+
+# ----------------------------------------------------------------
+# HAC credentials (local server)
+# ----------------------------------------------------------------
+hac:
+  base_url: https://localhost:9002
+  username: admin
+  password_env: HAC_PASSWORD_LOCAL   # env var name (see .env.example)
+
+# ----------------------------------------------------------------
+# Timeouts
+# ----------------------------------------------------------------
+thresholds:
+  system_update_timeout_min: 120    # large B2B orgs can take 60-90min — 120 is a safe margin
+  solr_reindex_timeout_min: 60
+  server_startup_timeout_min: 30
+  build_timeout_min: 120            # ant clean all on a fresh checkout
+
+# ----------------------------------------------------------------
+# Catalog versions expected to have products > 0 after Solr reindex
+# ----------------------------------------------------------------
+known_active_catalogs:
+  # List your catalog IDs that should have products after Solr reindex.
+  # Format: <catalogId>/Online   — find these in HAC → Type System → CatalogVersion
+  # Example:
+  #   - electronicsProductCatalog/Online
+  #   - apparelProductCatalog/Online
+
+# SSL config — local server typically uses self-signed cert
+verify_ssl: false

@@ -1,0 +1,36 @@
+environment: D1
+environment_code: d1
+platform_version: 2211-jdk21.9     # version you are upgrading TO
+deploy_mode: no_migration_recreate
+
+ccv2:
+  subscription_code: <your-subscription-code>
+  api_token_env: CCv2_API_TOKEN_D1
+
+hac:
+  username: admin
+  password_env: HAC_PASSWORD_D1
+
+endpoints:
+  accstorefront: https://accstorefront.<subscription>-<code>-d1-public.model-t.cc.commerce.ondemand.com
+  backoffice: https://backoffice.<subscription>-<code>-d1-public.model-t.cc.commerce.ondemand.com
+  api: https://api.<subscription>-<code>-d1-public.model-t.cc.commerce.ondemand.com
+
+opensearch:
+  base_url: ""
+  password_env: OPENSEARCH_PASSWORD_D1
+  index_pattern: "logs-*"
+
+thresholds:
+  system_update_timeout_min: 120
+  solr_reindex_timeout_min: 60
+  pod_startup_timeout_min: 30
+  build_timeout_min: 60
+  deploy_timeout_min: 60
+
+known_active_catalogs:
+  # Format: <catalogId>/Online
+  # Example:
+  #   - electronicsProductCatalog/Online
+
+verify_ssl: true

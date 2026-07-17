@@ -1,0 +1,42 @@
+environment: D2
+environment_code: d2
+platform_version: 2211-jdk21.9     # version you are upgrading TO
+deploy_mode: no_migration_recreate
+
+# CCv2 subscription — find in Cloud Portal → Subscriptions
+ccv2:
+  subscription_code: <your-subscription-code>
+  api_token_env: CCv2_API_TOKEN_D2     # env var name containing the Bearer token
+
+# HAC credentials
+hac:
+  username: admin
+  password_env: HAC_PASSWORD_D2        # env var name
+
+# Service endpoints — find in Cloud Portal → Environments → D2 → Services
+endpoints:
+  accstorefront: https://accstorefront.<subscription>-<code>-d2-public.model-t.cc.commerce.ondemand.com
+  backoffice: https://backoffice.<subscription>-<code>-d2-public.model-t.cc.commerce.ondemand.com
+  api: https://api.<subscription>-<code>-d2-public.model-t.cc.commerce.ondemand.com
+
+# OpenSearch
+opensearch:
+  base_url: ""                         # Cloud Portal → Logs → OpenSearch endpoint
+  password_env: OPENSEARCH_PASSWORD_D2
+  index_pattern: "logs-*"
+
+# Timeouts
+thresholds:
+  system_update_timeout_min: 120       # typical SAP System Update takes 45-90min
+  solr_reindex_timeout_min: 60
+  pod_startup_timeout_min: 30
+  build_timeout_min: 60
+  deploy_timeout_min: 60
+
+# Catalog versions with expected products > 0 after reindex
+known_active_catalogs:
+  # Format: <catalogId>/Online
+  # Example:
+  #   - electronicsProductCatalog/Online
+
+verify_ssl: true

@@ -1,0 +1,29 @@
+# Demo: ASIS platform — SAP Commerce 2211-jdk21.5 (B2C cx recipe)
+# This is the "before" state. Run setup-asis.sh first to initialize it.
+# Usage: python main.py --env demo-asis --gates-only
+
+environment: demo-asis
+platform_version: 2211-jdk21.5
+deploy_mode: local_ant_build
+
+local_server:
+  hybris_dir: ${DEMO_ASIS_DIR}/hybris
+  hac_url: https://localhost:9012
+
+log:
+  dir: ${DEMO_ASIS_DIR}/hybris/data/log
+
+hac:
+  base_url: https://localhost:9012
+  username: admin
+  password_env: DEMO_ADMIN_PASSWORD
+
+thresholds:
+  system_update_timeout_min: 60
+  solr_reindex_timeout_min: 30
+  server_startup_timeout_min: 30
+  build_timeout_min: 60
+
+known_active_catalogs: []
+
+verify_ssl: false
