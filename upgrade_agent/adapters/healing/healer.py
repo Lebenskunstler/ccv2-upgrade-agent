@@ -14,7 +14,7 @@ import os
 import yaml
 
 if TYPE_CHECKING:
-    from orchestrator import UpgradeContext
+    from upgrade_agent.workflows.classic_pipeline import UpgradeContext
 
 logger = logging.getLogger(__name__)
 

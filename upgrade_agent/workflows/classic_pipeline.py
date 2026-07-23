@@ -10,12 +10,16 @@ import os
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, Any
 
-from hac_client import HACClient
-from local_server import LocalServer
-from log_reader import LocalLogReader
-from healer import ErrorClassifier, HealingExecutor, EscalationHandler, HealResult
+from upgrade_agent.ports.pipeline_ports import (
+    HACPort,
+    LocalServerPort,
+    LogReaderPort,
+    ErrorClassifierPort,
+    HealingExecutorPort,
+    EscalationHandlerPort,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -73,12 +77,12 @@ class StepRunner:
 
     def __init__(
         self,
-        hac: HACClient,
-        local_server: LocalServer,
-        log_reader: LocalLogReader,
-        classifier: ErrorClassifier,
-        healer: HealingExecutor,
-        escalation: EscalationHandler,
+        hac: HACPort,
+        local_server: LocalServerPort,
+        log_reader: LogReaderPort,
+        classifier: ErrorClassifierPort,
+        healer: HealingExecutorPort,
+        escalation: EscalationHandlerPort,
         context: UpgradeContext,
     ):
         self.hac = hac
@@ -133,7 +137,7 @@ class StepRunner:
             if attempt < max_retries:
                 rule = self.classifier.classify(result.error)
                 if rule:
-                    heal = self.healer.execute(rule, self.context)
+                    heal: Any = self.healer.execute(rule, self.context)
                     fix_attempts.append({
                         "fix_id": heal.fix_id,
                         "result": heal.action_taken,

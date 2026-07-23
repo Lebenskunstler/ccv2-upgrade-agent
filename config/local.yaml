@@ -13,7 +13,7 @@ target_version: 2211-jdk21.14    # kept for backward compat
 # ----------------------------------------------------------------
 # Gate reports — written to <reports_root>/upgrade-reports/<slug>/
 # ----------------------------------------------------------------
-reports_root: path-topatch-jdk21
+reports_root: ${UPGRADE_REPORTS_ROOT}   # e.g. /path/to/upgrade-reports
 
 # ----------------------------------------------------------------
 # Local server paths
