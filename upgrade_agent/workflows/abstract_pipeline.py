@@ -26,14 +26,18 @@ import logging
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Any
 
-from release_note_parser import ReleaseNoteParser, ParsedRelease, ActionStep
-from gate_checker import GateChecker, AllGatesResult, GateResult
-from log_writer import LogWriter
-from code_navigator import CodeNavigator, NavigationHit
-from healer import ErrorClassifier, HealingExecutor, EscalationHandler, HealResult
-from orchestrator import UpgradeContext
+from upgrade_agent.ports.pipeline_ports import (
+    GateCheckerPort,
+    ErrorClassifierPort,
+    HealingExecutorPort,
+    EscalationHandlerPort,
+    LogWriterPort,
+    CodeNavigatorPort,
+    ReleaseNoteParserPort,
+)
+from upgrade_agent.workflows.classic_pipeline import UpgradeContext
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +49,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class IterationResult:
     iteration: int
-    gates: AllGatesResult
+    gates: Any
     steps_attempted: list[str]
     fixes_applied: list[str]
     escalations: list[str]
@@ -78,6 +82,25 @@ class PipelineResult:
         )
 
 
+@dataclass
+class _SyntheticGateResult:
+    gate_id: int
+    name: str
+    passed: bool
+    output: str
+    error: Optional[str] = None
+
+
+@dataclass
+class _EmptyParsedRelease:
+    source_file: str = ""
+    target_version: str = "UNKNOWN"
+    action_steps: list[Any] = field(default_factory=list)
+
+    def get_action_required_steps(self) -> list[Any]:
+        return []
+
+
 # ------------------------------------------------------------------
 # Abstract Pipeline
 # ------------------------------------------------------------------
@@ -103,13 +126,14 @@ class AbstractUpgradePipeline:
     def __init__(
         self,
         release_notes_path: str,
-        upgrade_log_path: str,
-        gate_checker: GateChecker,
-        classifier: ErrorClassifier,
-        healer: HealingExecutor,
-        escalation: EscalationHandler,
+        gate_checker: GateCheckerPort,
+        classifier: ErrorClassifierPort,
+        healer: HealingExecutorPort,
+        escalation: EscalationHandlerPort,
         context: UpgradeContext,
-        custom_code_root: str = "",
+        release_parser: ReleaseNoteParserPort,
+        log_writer: LogWriterPort,
+        code_navigator: CodeNavigatorPort,
         max_gate_retries: int = 3,
     ):
         self.release_notes_path = release_notes_path
@@ -120,24 +144,23 @@ class AbstractUpgradePipeline:
         self.context = context
         self.max_gate_retries = max_gate_retries
 
-        self.log = LogWriter(upgrade_log_path)
-        self.navigator = CodeNavigator(custom_code_root)
+        self.release_parser = release_parser
+        self.log = log_writer
+        self.navigator = code_navigator
 
-        self._release: Optional[ParsedRelease] = None
+        self._release: Optional[Any] = None
 
     # ------------------------------------------------------------------
     # Release note loading
     # ------------------------------------------------------------------
 
-    def _load_release(self) -> ParsedRelease:
+    def _load_release(self) -> Any:
         if self._release is not None:
             return self._release
         if not self.release_notes_path or not Path(self.release_notes_path).exists():
             logger.warning("No release notes path — running without parsed steps")
-            from release_note_parser import ParsedRelease
-            return ParsedRelease(source_file="", target_version="UNKNOWN")
-        parser = ReleaseNoteParser(self.release_notes_path)
-        self._release = parser.parse()
+            return _EmptyParsedRelease()
+        self._release = self.release_parser.parse()
         logger.info(
             f"Loaded release notes: {self._release.target_version} — "
             f"{len(self._release.action_steps)} steps"
@@ -150,10 +173,10 @@ class AbstractUpgradePipeline:
 
     def _repair_gate(
         self,
-        gate: GateResult,
+        gate: Any,
         fixes_applied: list[str],
         escalations: list[str],
-        release: ParsedRelease,
+        release: Any,
     ) -> bool:
         """
         Attempt to repair a failing gate.
@@ -194,7 +217,7 @@ class AbstractUpgradePipeline:
         rule = self.classifier.classify(error_text)
         if rule:
             logger.info(f"Healing rule matched: {rule.id}")
-            heal: HealResult = self.healer.execute(rule, self.context)
+            heal: Any = self.healer.execute(rule, self.context)
             action_summary = f"[{rule.id}] {heal.action_taken}"
 
             self.log.log_fix_applied(step_id, rule.id, heal.action_taken)
@@ -241,7 +264,7 @@ class AbstractUpgradePipeline:
     # Pre-flight: log action steps from release notes
     # ------------------------------------------------------------------
 
-    def _log_preflight(self, release: ParsedRelease):
+    def _log_preflight(self, release: Any):
         """Log what the release notes say needs to be done, before executing."""
         action_steps = release.get_action_required_steps()
         if not action_steps:
@@ -297,7 +320,7 @@ class AbstractUpgradePipeline:
 
         # Track Gate 1 across iterations: no need to rebuild if it already passed.
         gate1_ever_passed = skip_build
-        g1_cached = GateResult(gate_id=1, name="BUILD", passed=True, output="Skipped (skip_build=True)") if skip_build else None
+        g1_cached = _SyntheticGateResult(gate_id=1, name="BUILD", passed=True, output="Skipped (skip_build=True)") if skip_build else None
 
         for iteration in range(1, max_iterations + 1):
             logger.info(f"\n{'='*60}\nIteration {iteration}/{max_iterations}\n{'='*60}")
@@ -310,7 +333,7 @@ class AbstractUpgradePipeline:
             # --- Gate 1: Build ---
             if gate1_ever_passed:
                 # Build already succeeded in a prior iteration — skip the rebuild.
-                g1 = g1_cached or GateResult(gate_id=1, name="BUILD", passed=True, output="Carried from prior iteration")
+                g1 = g1_cached or _SyntheticGateResult(gate_id=1, name="BUILD", passed=True, output="Carried from prior iteration")
                 logger.info("Gate 1 already passed — skipping rebuild")
                 iter_steps.append("GATE-1 (skipped — carried)")
             else:

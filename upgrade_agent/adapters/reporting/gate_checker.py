@@ -12,10 +12,10 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from local_server import LocalServer
-from hac_client import HACClient
-from log_reader import LocalLogReader
-from gate_reporter import GateReporter
+from upgrade_agent.adapters.server.local_server import LocalServer
+from upgrade_agent.adapters.hac.hac_client import HACClient
+from upgrade_agent.adapters.logs.log_reader import LocalLogReader
+from upgrade_agent.adapters.reporting.gate_reporter import GateReporter
 
 logger = logging.getLogger(__name__)
 

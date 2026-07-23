@@ -10,7 +10,7 @@ Report directory layout:
 
 Usage:
     reporter = GateReporter(
-        reports_root="/home/.../hybris-archives/patch-jdk21",
+        reports_root="/path/to/upgrade-reports",
         from_version="2211-jdk21.9",
         to_version="2211-jdk21.14",
     )

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from release_note_parser import ParsedRelease
+    from upgrade_agent.adapters.parser.release_note_parser import ParsedRelease
 
 logger = logging.getLogger(__name__)
 
